@@ -1,0 +1,78 @@
+{
+  "name": "atlas-companion",
+  "displayName": "Atlas Companion",
+  "description": "Use the Atlas local AI desktop assistant from Visual Studio Code.",
+  "version": "0.1.4",
+  "publisher": "atlas-contributors",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["AI", "Programming Languages", "Other"],
+  "keywords": ["atlas", "ai", "local ai", "code assistant", "ollama"],
+  "extensionKind": ["ui"],
+  "main": "./extension.cjs",
+  "activationEvents": [
+    "onView:atlas.chat",
+    "onCommand:atlas.showPanel",
+    "onCommand:atlas.connect",
+    "onCommand:atlas.askSelection",
+    "onCommand:atlas.explainSelection",
+    "onCommand:atlas.reviewFile",
+    "onCommand:atlas.previewLastCode",
+    "onCommand:atlas.newChat"
+  ],
+  "contributes": {
+    "commands": [
+      { "command": "atlas.showPanel", "title": "Atlas: Show Panel", "icon": "$(sparkle)" },
+      { "command": "atlas.connect", "title": "Atlas: Connect to Desktop", "icon": "$(plug)" },
+      { "command": "atlas.askSelection", "title": "Atlas: Ask About Selection" },
+      { "command": "atlas.explainSelection", "title": "Atlas: Explain Selection" },
+      { "command": "atlas.reviewFile", "title": "Atlas: Review Current File" },
+      { "command": "atlas.previewLastCode", "title": "Atlas: Preview Last Code Response" },
+      { "command": "atlas.newChat", "title": "Atlas: New Chat", "icon": "$(add)" }
+    ],
+    "menus": {
+      "editor/context": [
+        { "command": "atlas.askSelection", "when": "editorHasSelection", "group": "navigation@20" },
+        { "command": "atlas.explainSelection", "when": "editorHasSelection", "group": "navigation@21" }
+      ],
+      "view/title": [
+        { "command": "atlas.connect", "when": "view == atlas.chat", "group": "navigation@1" },
+        { "command": "atlas.newChat", "when": "view == atlas.chat", "group": "navigation@2" }
+      ]
+    },
+    "configuration": {
+      "title": "Atlas Companion",
+      "properties": {
+        "atlas.bridgeUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:47635",
+          "description": "Local Atlas desktop bridge. Only loopback HTTP addresses are accepted."
+        },
+        "atlas.includeFilePaths": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include workspace-relative file names when explicitly sending editor context to Atlas."
+        }
+      }
+    },
+    "viewsContainers": {
+      "secondarySidebar": [
+        { "id": "atlas-secondary", "title": "Atlas", "icon": "media/atlas.svg" }
+      ]
+    },
+    "views": {
+      "atlas-secondary": [
+        { "type": "webview", "id": "atlas.chat", "name": "Code Agent" }
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.cjs",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.2"
+  }
+}

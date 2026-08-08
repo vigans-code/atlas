@@ -1,0 +1,94 @@
+name: atlas
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: atlas
+      POSTGRES_USER: atlas
+      POSTGRES_PASSWORD: atlas
+    volumes:
+      - atlas-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlas -d atlas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - atlas-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      ATLAS_ENVIRONMENT: development
+      ATLAS_SECRET_KEY: ${ATLAS_SECRET_KEY:-local-development-secret-change-before-production}
+      ATLAS_DATABASE_URL: postgresql+asyncpg://atlas:atlas@db:5432/atlas
+      ATLAS_REDIS_URL: redis://redis:6379/0
+      ATLAS_CORS_ORIGINS: '["http://localhost:5173","http://localhost:8080","atlas://app"]'
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+    environment:
+      VITE_API_URL: http://localhost:8000/api/v1
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - atlas-electron-cache:/home/node/.cache/electron-builder
+    ports:
+      - "5173:5173"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  model:
+    build:
+      context: ./model
+    environment:
+      ATLAS_MODEL_CHECKPOINT: /model/checkpoints/atlas-v0.pt
+    volumes:
+      - ./model/atlas_model:/model/atlas_model:ro
+      - ./model/data:/model/data:ro
+      - ./model/checkpoints:/model/checkpoints
+    ports:
+      - "127.0.0.1:47636:47636"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:47636/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  atlas-postgres:
+  atlas-redis:
+  atlas-electron-cache:

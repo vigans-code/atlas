@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "atlas-native-model"
+version = "0.1.0"
+description = "From-scratch language model training and inference for Atlas"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115,<1.0",
+  "numpy>=2.0,<3.0",
+  "pydantic>=2.10,<3.0",
+  "torch>=2.5,<3.0",
+  "uvicorn[standard]>=0.32,<1.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9.0", "ruff>=0.8,<1.0"]
+
+[project.scripts]
+atlas-train = "atlas_model.train:main"
+atlas-generate = "atlas_model.generate:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["atlas_model"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "id": "atlas-original-seed-v1",
+      "path": "seed/atlas_identity.txt",
+      "owner": "Atlas Contributors",
+      "license": "Atlas-original training material",
+      "sha256": "d43ab817ad5f7babb0a0ab92f97855203a76f82a2eee3e1c8083b0aac3d116f0"
+    }
+  ]
+}
