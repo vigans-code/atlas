@@ -39,7 +39,10 @@ if (-not (Test-Path -LiteralPath $executable)) {
 }
 
 if (-not $SkipSmokeTest) {
-    $smokePort = 47637
+    $portProbe = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, 0)
+    $portProbe.Start()
+    $smokePort = ([System.Net.IPEndPoint]$portProbe.LocalEndpoint).Port
+    $portProbe.Stop()
     $oldCheckpoint = $env:ATLAS_MODEL_CHECKPOINT
     $oldPort = $env:ATLAS_MODEL_PORT
     $oldErrorLog = $env:ATLAS_MODEL_ERROR_LOG
