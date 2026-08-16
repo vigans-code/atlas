@@ -14,8 +14,11 @@
     "test:security": "node --test electron/*.test.cjs",
     "preview": "vite preview",
     "desktop:dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && cross-env ATLAS_DESKTOP_DEV_URL=http://127.0.0.1:5173 electron .\"",
-    "desktop:dir": "npm run build && electron-builder --win dir",
-    "desktop:package": "npm run build && electron-builder --win nsis"
+    "model:bundle:windows": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ..\\scripts\\build-model-runtime.ps1",
+    "desktop:dir:app-only": "npm run build && electron-builder --win dir",
+    "desktop:package:app-only": "npm run build && electron-builder --win nsis",
+    "desktop:dir": "npm run model:bundle:windows && npm run desktop:dir:app-only",
+    "desktop:package": "npm run model:bundle:windows && npm run desktop:package:app-only"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
@@ -63,6 +66,16 @@
       "dist/**/*",
       "electron/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../model/dist/atlas-model",
+        "to": "model/runtime"
+      },
+      {
+        "from": "../model/checkpoints/atlas-v0.pt",
+        "to": "model/checkpoints/atlas-v0.pt"
+      }
     ],
     "win": {
       "icon": "public/brand/atlas-app-icon.png",

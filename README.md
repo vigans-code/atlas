@@ -5,7 +5,7 @@ public-information research. Its interface is conversation-first and intentional
 tools share one navigation system, one history surface, one provider boundary, and one security
 model.
 
-> **0.1.0 is a developer preview.** Atlas Native chat runs from Atlas-owned code and weights, but
+> **0.1.0 is a preview.** Atlas Native chat runs from Atlas-owned code and weights, but
 > the small checkpoint is experimental. Atlas image generation has not been trained and is
 > intentionally unavailable rather than being backed by a third-party model.
 
@@ -29,34 +29,40 @@ The investigation UI has been removed from the active product. Its backend table
 API remain temporarily for non-destructive compatibility; they will be archived or exported before
 the legacy schema is removed. See [the migration audit](docs/ai-workspace-migration.md).
 
-## Desktop quick start
+## Install Atlas on Windows
 
-Install and verify the local development dependencies:
+Download `Atlas-Setup-0.1.0.exe`, run Setup, choose an installation directory, and launch Atlas
+from the Start menu or desktop shortcut. Setup contains Electron, the frozen Atlas Native Python
+service, CPU PyTorch, and the Atlas checkpoint. End users do not need Python, Node.js, Docker, or
+API keys.
+
+## Run from PowerShell or Command Prompt
+
+For source development, install dependencies once:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\verify.ps1
 ```
 
-Start the local services (Docker Desktop must be running):
-
 ```powershell
-docker compose up --build --detach db redis api model
+.\scripts\run-atlas.cmd
+# or
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-atlas.ps1
 ```
 
-Start the desktop development build from `frontend`:
+These commands launch an installed or locally packaged Atlas first. Pass `-Development` to the
+PowerShell script to force the Vite/Electron development runtime.
+
+Build the complete standalone installer:
 
 ```powershell
-npm ci
-npm run desktop:dev
+.\scripts\build-installer.cmd
 ```
 
-Build a Windows application directory with `npm run desktop:dir`, or an installer with
-`npm run desktop:package`. Output is written to `frontend/release`. The current desktop installer
-does not bundle Python/PyTorch, so Atlas Native requires the repository's prepared `model/.venv`
-and checkpoint; use Docker for a reproducible service deployment.
+Output is written to `frontend/release/Atlas-Setup-0.1.0.exe`.
 
-## Single-host deployment
+## Optional server deployment
 
 Copy `.env.production.example` to `.env`, replace every placeholder with a strong unique value,
 set the public hostname/CORS origin, then run:
@@ -65,8 +71,9 @@ set the public hostname/CORS origin, then run:
 docker compose --env-file .env -f compose.release.yaml up --build --detach
 ```
 
-The web service binds to loopback port 8080 by default. Put a trusted TLS reverse proxy in front of
-it. The production profile disables the obsolete investigation API. See
+Docker is not required for the Atlas desktop application. The Compose profile remains available
+only for optional future self-hosted/server work. The production profile disables the obsolete
+investigation API. See
 [Deployment and operations](docs/deployment.md).
 
 ## Architecture

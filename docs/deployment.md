@@ -1,13 +1,32 @@
 # Deployment and operations
 
-## Supported release paths
+## Primary Windows installation
 
-- Docker Compose is the reproducible single-host path for the web, API, database, cache, and Atlas
-  Native model services.
-- The Electron package is currently a Windows developer preview. It needs a prepared local model
-  environment and is not yet a self-contained model installer.
+`Atlas-Setup-0.1.0.exe` is the primary distribution. It installs the desktop application and an
+embedded Atlas Native runtime. The installed application does not require Docker, Python, Node.js,
+an API key, or access to the source repository.
 
-## Production installation
+Setup creates normal Windows application entries and supports a user-selected installation
+directory. Atlas launches its private model service on loopback when the app starts and stops it
+when Atlas exits.
+
+## Source commands
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install.ps1
+.\scripts\run-atlas.cmd
+```
+
+Build a standalone installer:
+
+```powershell
+.\scripts\build-installer.cmd
+```
+
+The build smoke-tests the frozen model executable on port 47637 before Electron Builder is allowed
+to create Setup.
+
+## Optional server installation
 
 Requirements: Docker Engine with Compose v2, a TLS-capable reverse proxy, and enough disk/RAM for
 PostgreSQL and the Atlas model checkpoint.
@@ -83,14 +102,13 @@ readiness checks and verify representative records.
 ## Release artifacts
 
 `scripts/build-release.ps1` runs verification and produces a versioned source ZIP plus SHA-256
-checksum under `release/`. Pass `-BuildWindowsInstaller` only when the desktop model prerequisites
-are prepared. Tagged GitHub releases run CI, build source/Windows artifacts, and publish versioned
-API, web, and model images to GitHub Container Registry.
+checksum under `release/`. `scripts/build-installer.cmd` builds the embedded model runtime and the
+Windows Setup executable. Tagged GitHub releases build and publish source and Windows artifacts.
 
-## Known operational boundaries
+## Known product boundaries
 
 - Authentication endpoints exist, but the React sign-in UI and durable workspace repositories are
   not wired in 0.1.0.
-- The browser build does not yet expose Atlas Native chat; desktop is the active Chat client.
+- The browser build does not yet expose Atlas Native chat; the standalone desktop app is the active Chat client.
 - No Atlas-owned image checkpoint exists.
 - Background jobs/object storage are not implemented, so remote file/image workflows are disabled.

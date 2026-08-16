@@ -6,6 +6,8 @@ All notable Atlas changes are recorded here. Atlas follows semantic versioning.
 
 ### Added
 
+- A self-contained Windows installer with an embedded Atlas Native/PyTorch runtime.
+- PowerShell and Command Prompt launch and installer-building commands.
 - Production-oriented deployment, verification, backup, and release tooling.
 - Revocable account sessions with Argon2 password hashing.
 - A release-readiness audit and explicit capability boundaries.

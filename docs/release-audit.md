@@ -28,8 +28,8 @@ called complete only when its user-visible path, storage, failure states, and te
 - Account registration, login, and revocable sessions did not exist. Addressed in this release pass.
 - The original web container ran the Vite development server and the Compose file used development
   credentials and reload mode.
-- Packaged desktop discovery assumes a development Python environment, so the Windows package is a
-  developer preview rather than a standalone AI distribution.
+- Addressed: Windows Setup now embeds a PyInstaller one-folder Atlas Native service, CPU PyTorch,
+  and the Atlas checkpoint under Electron resources.
 - Release automation, checksums, backup/restore scripts, a license, and a changelog were absent.
 
 ## D. Image generation
@@ -89,6 +89,6 @@ install verifier, database backup/restore helpers, release archive, or checksum 
 
 ## Definition of the 0.1.0 release
 
-Version 0.1.0 is an honest developer preview of Atlas Native chat and the workspace foundations. It
-does not claim standalone model installation, production image generation, or complete multi-user
-durability. Those boundaries must appear in release notes and the UI.
+Version 0.1.0 is an honest preview of Atlas Native chat and the workspace foundations. Windows Setup
+is locally self-contained, but the release does not claim production image generation or complete
+multi-user durability. Those boundaries must appear in release notes and the UI.

@@ -15,12 +15,25 @@ function candidateModelRoots({ electronDirectory = __dirname, resourcesPath = pr
 }
 
 function findNativeModelRuntime(options = {}) {
+  const resourcesPath = options.resourcesPath ?? process.resourcesPath;
+  if (resourcesPath) {
+    const packagedRoot = path.join(resourcesPath, "model");
+    const executable = process.platform === "win32"
+      ? path.join(packagedRoot, "runtime", "atlas-model.exe")
+      : path.join(packagedRoot, "runtime", "atlas-model");
+    const checkpoint = path.join(packagedRoot, "checkpoints", "atlas-v0.pt");
+    if (fs.existsSync(executable) && fs.existsSync(checkpoint)) {
+      return { kind: "bundle", root: packagedRoot, executable, checkpoint };
+    }
+  }
   for (const root of candidateModelRoots(options)) {
     const python = process.platform === "win32"
       ? path.join(root, ".venv", "Scripts", "python.exe")
       : path.join(root, ".venv", "bin", "python");
     const checkpoint = path.join(root, "checkpoints", "atlas-v0.pt");
-    if (fs.existsSync(python) && fs.existsSync(checkpoint)) return { root, python, checkpoint };
+    if (fs.existsSync(python) && fs.existsSync(checkpoint)) {
+      return { kind: "python", root, executable: python, checkpoint };
+    }
   }
   return null;
 }
@@ -30,17 +43,24 @@ async function startNativeModel(options = {}) {
   if (!runtime) {
     return {
       process: null,
-      error: "Atlas Native runtime is not installed. Create model/.venv and train model/checkpoints/atlas-v0.pt.",
+      error: "Atlas Native runtime is not installed. Reinstall Atlas or prepare model/.venv for development.",
     };
   }
   if (await isNativeModelReady()) return { process: null, error: null };
 
   const child = spawn(
-    runtime.python,
-    ["-m", "uvicorn", "atlas_model.server:app", "--host", NATIVE_HOST, "--port", String(NATIVE_PORT)],
+    runtime.executable,
+    runtime.kind === "bundle"
+      ? []
+      : ["-m", "uvicorn", "atlas_model.server:app", "--host", NATIVE_HOST, "--port", String(NATIVE_PORT)],
     {
       cwd: runtime.root,
-      env: { ...process.env, ATLAS_MODEL_CHECKPOINT: runtime.checkpoint, PYTHONUNBUFFERED: "1" },
+      env: {
+        ...process.env,
+        ATLAS_MODEL_CHECKPOINT: runtime.checkpoint,
+        ATLAS_MODEL_PORT: String(NATIVE_PORT),
+        PYTHONUNBUFFERED: "1",
+      },
       windowsHide: true,
       shell: false,
       stdio: "ignore",
