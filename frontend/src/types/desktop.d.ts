@@ -4,28 +4,22 @@ interface AtlasDesktopBridge {
   selectFiles: () => Promise<AtlasSelectedFile[]>;
   selectFolder: () => Promise<{ name: string; path: string } | null>;
   fetchResearchSource: (url: string) => Promise<AtlasFetchedResearchSource>;
+  apiRequest: <T>(input: { path: string; method?: "GET" | "POST" | "PATCH"; body?: Record<string, unknown> }) => Promise<T>;
   openExternal: (url: string) => Promise<boolean>;
   importExtension: () => Promise<AtlasExtensionManifest | null>;
   saveExtensionTemplate: () => Promise<string | null>;
   getProvider: () => Promise<AtlasProviderState>;
-  saveProvider: (input: { config: AtlasProviderConfig; apiKey?: string; clearApiKey?: boolean }) => Promise<AtlasProviderState>;
-  testProvider: (input?: { config?: AtlasProviderConfig; apiKey?: string }) => Promise<{ ok: boolean; message: string }>;
+  saveProvider: (input: { config: AtlasProviderConfig }) => Promise<AtlasProviderState>;
+  testProvider: (input?: { config?: AtlasProviderConfig }) => Promise<{ ok: boolean; message: string }>;
   providerChat: (input: { mode: "chat" | "code"; messages: AtlasProviderMessage[]; attachmentIds?: string[]; requestId?: string }) => Promise<string>;
   cancelProviderChat: (requestId: string) => Promise<boolean>;
   onProviderChatChunk: (callback: (update: { requestId: string; chunk: string }) => void) => () => void;
   providerImage: (prompt: string) => Promise<{ dataUrl: string; revisedPrompt: string | null }>;
   startDictation: () => Promise<{ cancelled: boolean; text: string; confidence: number }>;
   stopDictation: () => Promise<boolean>;
-  getLocalAiStatus: () => Promise<AtlasLocalAiStatus>;
-  openLocalAiInstaller: () => Promise<boolean>;
-  startLocalAi: () => Promise<AtlasLocalAiStatus>;
-  pullLocalAiModel: (model: string) => Promise<AtlasLocalAiStatus>;
-  cancelLocalAiModel: () => Promise<boolean>;
-  useLocalAiModel: (model: string) => Promise<AtlasLocalAiStatus>;
   getCompanion: () => Promise<AtlasCompanionState>;
   copyCompanionToken: () => Promise<boolean>;
   rotateCompanionToken: () => Promise<AtlasCompanionState>;
-  onLocalAiProgress: (callback: (progress: AtlasLocalAiProgress) => void) => () => void;
   windowControl: (action: "minimize" | "maximize" | "close") => void;
 }
 
@@ -46,8 +40,8 @@ interface AtlasFetchedResearchSource {
   truncated: boolean;
 }
 
-type AtlasProviderKind = "atlas" | "demo" | "openai" | "compatible" | "ollama";
-type AtlasReasoningEffort = "none" | "low" | "medium" | "high";
+type AtlasProviderKind = "atlas";
+type AtlasReasoningEffort = "none";
 
 interface AtlasProviderConfig {
   provider: AtlasProviderKind;
@@ -69,31 +63,6 @@ interface AtlasProviderMessage {
   content: string;
 }
 
-interface AtlasLocalAiModel {
-  name: string;
-  label?: string;
-  size?: number;
-  minimumRamGb?: number;
-  downloadBytes?: number;
-}
-
-interface AtlasLocalAiStatus {
-  runtimeInstalled: boolean;
-  runtimeRunning: boolean;
-  ramGb: number;
-  recommended: AtlasLocalAiModel;
-  models: AtlasLocalAiModel[];
-  active?: boolean;
-  activeModel?: string | null;
-  activeChatModel?: string | null;
-}
-
-interface AtlasLocalAiProgress {
-  status: string;
-  completed: number;
-  total: number;
-  percent: number;
-}
 
 interface AtlasCompanionState {
   running: boolean;

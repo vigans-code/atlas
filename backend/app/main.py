@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.api.router import api_router
 from app.core.config import settings
@@ -23,7 +24,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Versioned API for the Atlas intelligence workspace.",
+    description="Versioned API foundation for the Atlas AI workspace.",
     docs_url="/docs" if settings.environment != "production" else None,
     redoc_url=None,
     lifespan=lifespan,
@@ -36,6 +37,7 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
 
 
 @app.middleware("http")
@@ -47,7 +49,11 @@ async def request_context(request: Request, call_next):
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-    response.headers["Server-Timing"] = f'app;dur={(time.perf_counter() - started) * 1000:.2f}'
+    response.headers["Permissions-Policy"] = "camera=(), geolocation=(), payment=()"
+    response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
+    if settings.environment == "production":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    response.headers["Server-Timing"] = f"app;dur={(time.perf_counter() - started) * 1000:.2f}"
     return response
 
 
@@ -56,5 +62,7 @@ app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/", include_in_schema=False)
 async def root() -> dict[str, str]:
-    return {"name": settings.app_name, "docs": "/docs", "health": "/api/v1/health/live"}
-
+    response = {"name": settings.app_name, "health": "/api/v1/health/live"}
+    if settings.environment != "production":
+        response["docs"] = "/docs"
+    return response

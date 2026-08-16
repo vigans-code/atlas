@@ -20,6 +20,10 @@ docker compose up -d model
 
 Check readiness at `http://127.0.0.1:47636/v1/health`.
 
+The Atlas desktop app also discovers `model/.venv` and `model/checkpoints/atlas-v0.pt` in a local
+development checkout and starts this loopback service automatically. It never falls back to a remote
+model when the native runtime is missing.
+
 ## Dataset provenance
 
 Every training file must be stored beneath `data/`, declared in `data/manifest.json`, assigned an owner

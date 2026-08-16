@@ -41,6 +41,17 @@ and a moderated distribution policy.
   cancellation.
 - Generated code and images must be labeled until verified by the user.
 
+## Knowledge and retrieval boundary
+
+- Knowledge endpoints require signed, expiring principals and verify that the user is active.
+- Private and project authorization is included in database queries before candidates are selected.
+- Retrieved files and webpages are untrusted data and cannot override system instructions, tool
+  permissions, confirmation requirements, or application configuration.
+- Deleted or disabled sources are excluded immediately; later purge workers remove derived chunks,
+  embeddings, and caches according to retention policy.
+- The API is bound to loopback in the development Compose profile. Authentication/session issuance,
+  rate limiting, and audit persistence remain required before remote exposure.
+
 ## Release requirements
 
 - Sign desktop installers and publish checksums and an SBOM.

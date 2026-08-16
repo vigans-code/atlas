@@ -11,6 +11,7 @@ from app.schemas.investigation import (
     InvestigationList,
     InvestigationRead,
     InvestigationSummary,
+    InvestigationUpdate,
 )
 
 router = APIRouter()
@@ -24,10 +25,7 @@ async def list_investigations(
 ) -> InvestigationList:
     total = await db.scalar(select(func.count()).select_from(Investigation))
     result = await db.scalars(
-        select(Investigation)
-        .order_by(Investigation.updated_at.desc())
-        .limit(limit)
-        .offset(offset)
+        select(Investigation).order_by(Investigation.updated_at.desc()).limit(limit).offset(offset)
     )
     return InvestigationList(
         items=list(result),
@@ -42,15 +40,9 @@ async def investigation_summary(db: AsyncSession = Depends(get_db)) -> Investiga
     rows = await db.execute(
         select(
             func.count(Investigation.id),
-            func.count(Investigation.id).filter(
-                Investigation.status == InvestigationStatus.ACTIVE
-            ),
-            func.count(Investigation.id).filter(
-                Investigation.status == InvestigationStatus.REVIEW
-            ),
-            func.count(Investigation.id).filter(
-                Investigation.status == InvestigationStatus.CLOSED
-            ),
+            func.count(Investigation.id).filter(Investigation.status == InvestigationStatus.ACTIVE),
+            func.count(Investigation.id).filter(Investigation.status == InvestigationStatus.REVIEW),
+            func.count(Investigation.id).filter(Investigation.status == InvestigationStatus.CLOSED),
         )
     )
     total, active, review, closed = rows.one()
@@ -79,3 +71,18 @@ async def get_investigation(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Investigation not found")
     return investigation
 
+
+@router.patch("/{investigation_id}", response_model=InvestigationRead)
+async def update_investigation(
+    investigation_id: uuid.UUID,
+    payload: InvestigationUpdate,
+    db: AsyncSession = Depends(get_db),
+) -> Investigation:
+    investigation = await db.get(Investigation, investigation_id)
+    if investigation is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Investigation not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(investigation, field, value)
+    await db.commit()
+    await db.refresh(investigation)
+    return investigation

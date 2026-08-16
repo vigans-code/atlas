@@ -1,0 +1,40 @@
+{
+  "checkpoint": "checkpoints\\atlas-v0.pt",
+  "step": 3000,
+  "corpus_sha256": "40fab0eb1a314fb77ec9254b59ba2b0b87282094c1ebe7a912644b595802adb3",
+  "validation_loss": 2.334178388118744,
+  "results": [
+    {
+      "prompt": "hey",
+      "response": "Hey! What can I help you with?"
+    },
+    {
+      "prompt": "who are you",
+      "response": "I'm Atlas, an open-source AI workspace built by Atlas contributors."
+    },
+    {
+      "prompt": "what can you do",
+      "response": "I can answer questions, explain concepts, write and review code, analyze user-provided text, and he"
+    },
+    {
+      "prompt": "what is OSINT",
+      "response": "Open-source intelligence is the lawful collection and analysis of information from public or explic"
+    },
+    {
+      "prompt": "what is Python",
+      "response": "Python is a general-purpose programming language known for readable syntax and a broad ecosystem fo"
+    },
+    {
+      "prompt": "explain authentication",
+      "response": "Authentication establishes who a user is. Authorization decursion remains uncertain. If current or"
+    },
+    {
+      "prompt": "can you write code",
+      "response": "Yes. Tell me the language, goal, constraints, and any existing code, and I can produce or improve a"
+    },
+    {
+      "prompt": "how should passwords be stored",
+      "response": "Store passwords with a dedicated slow password-hashing algorithm such as Argon2id, using unique sal"
+    }
+  ]
+}

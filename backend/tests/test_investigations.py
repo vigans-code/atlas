@@ -45,3 +45,31 @@ async def test_missing_investigation_returns_404(client: AsyncClient) -> None:
     assert response.status_code == 404
     assert response.json()["detail"] == "Investigation not found"
 
+
+async def test_updates_investigation_workflow_fields(client: AsyncClient) -> None:
+    created = (
+        await client.post(
+            "/api/v1/investigations",
+            json={"title": "Public infrastructure review", "tags": ["infrastructure"]},
+        )
+    ).json()
+
+    response = await client.patch(
+        f"/api/v1/investigations/{created['id']}",
+        json={
+            "status": "active",
+            "objective": "Document publicly visible infrastructure with source provenance.",
+            "scope": "example.org and explicitly linked public services",
+            "reference": "ATL-2026-001",
+            "sensitivity": "sensitive",
+            "lead_analyst": "Atlas Analyst",
+            "due_date": "2026-08-30",
+            "tags": [" OSINT ", "osint", "domain"],
+        },
+    )
+
+    assert response.status_code == 200
+    updated = response.json()
+    assert updated["reference"] == "ATL-2026-001"
+    assert updated["sensitivity"] == "sensitive"
+    assert updated["tags"] == ["osint", "domain"]

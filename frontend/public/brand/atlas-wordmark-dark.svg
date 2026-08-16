@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 244 64" fill="none">
+  <g transform="translate(0)">
+    <g stroke="#8A7CF0" stroke-width="3" stroke-linecap="round">
+      <ellipse cx="32" cy="32" rx="25" ry="10.5" transform="rotate(27 32 32)" stroke-dasharray="55 11"/>
+      <ellipse cx="32" cy="32" rx="25" ry="10.5" transform="rotate(-27 32 32)" stroke-dasharray="47 10 9 10"/>
+      <ellipse cx="32" cy="32" rx="24" ry="9.5" transform="rotate(90 32 32)" stroke-dasharray="35 12 10 12"/>
+    </g>
+    <path d="M32 24.2 39 28v8L32 39.8 25 36v-8l7-3.8Z" fill="#8A7CF0"/>
+    <circle cx="52.5" cy="20.5" r="2.5" fill="#8A7CF0"/>
+  </g>
+  <text x="82" y="43" fill="#F4F4F5" font-family="Inter,Segoe UI,sans-serif" font-size="34" font-weight="650" letter-spacing="-1">Atlas</text>
+</svg>

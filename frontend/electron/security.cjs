@@ -25,6 +25,40 @@ function isPathInside(root, candidate) {
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
+const ALLOWED_API_RESOURCES = new Set([
+  "health",
+  "investigations",
+  "sources",
+  "evidence",
+  "entities",
+  "relationships",
+]);
+
+function validateApiRequest(input) {
+  if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("API request is invalid.");
+  const method = typeof input.method === "string" ? input.method.toUpperCase() : "GET";
+  if (!["GET", "POST", "PATCH"].includes(method)) throw new Error("API method is not allowed.");
+  if (typeof input.path !== "string" || input.path.length > 500) throw new Error("API path is invalid.");
+  const parsed = new URL(input.path, "http://atlas.local");
+  if (parsed.origin !== "http://atlas.local" || !parsed.pathname.startsWith("/api/v1/")) {
+    throw new Error("API path is outside the Atlas API.");
+  }
+  const segments = parsed.pathname.slice("/api/v1/".length).split("/").filter(Boolean);
+  if (!segments.length || !ALLOWED_API_RESOURCES.has(segments[0]) || segments.length > 2) {
+    throw new Error("API resource is not allowed.");
+  }
+  if (segments.length === 2 && !/^(?:live|ready|summary|[a-f0-9-]{36})$/i.test(segments[1])) {
+    throw new Error("API record identifier is invalid.");
+  }
+  for (const key of parsed.searchParams.keys()) {
+    if (!["investigation_id", "limit", "offset"].includes(key)) throw new Error("API query parameter is not allowed.");
+  }
+  const body = input.body === undefined ? null : input.body;
+  if (body !== null && (typeof body !== "object" || Array.isArray(body))) throw new Error("API body is invalid.");
+  if (body !== null && Buffer.byteLength(JSON.stringify(body), "utf8") > 256 * 1024) throw new Error("API body is too large.");
+  return { path: `${parsed.pathname}${parsed.search}`, method, body };
+}
+
 function sanitizeExtensionManifest(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Manifest must be a JSON object.");
   const required = ["id", "name", "version", "description", "author"];
@@ -51,4 +85,4 @@ function sanitizeExtensionManifest(value) {
   };
 }
 
-module.exports = { isPathInside, isSafeExternalUrl, sanitizeExtensionManifest };
+module.exports = { isPathInside, isSafeExternalUrl, sanitizeExtensionManifest, validateApiRequest };

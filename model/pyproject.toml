@@ -21,6 +21,7 @@ dev = ["pytest>=8.3,<9.0", "ruff>=0.8,<1.0"]
 [project.scripts]
 atlas-train = "atlas_model.train:main"
 atlas-generate = "atlas_model.generate:main"
+atlas-evaluate = "atlas_model.evaluate:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["atlas_model"]

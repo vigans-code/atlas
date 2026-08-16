@@ -1,70 +1,28 @@
-import { Circle, Minus, MoreHorizontal, Square, X } from "lucide-react";
+import { Command, Menu, Minus, MoreHorizontal, Square, X } from "lucide-react";
 import { useState } from "react";
 
 import { navigate, usePathname } from "../lib/router";
+import { useUiStore } from "../stores/ui";
+
+const pageNames: Record<string, string> = { "/": "Atlas", "/chat": "Chat", "/image": "Image", "/code": "Code", "/search": "Search", "/projects": "Projects", "/files": "Library", "/history": "History", "/extensions": "Extensions", "/settings": "Settings" };
 
 export function TopBar() {
   const isDesktop = Boolean(window.atlasDesktop?.isDesktop);
   const pathname = usePathname();
+  const setMobileSidebarOpen = useUiStore((state) => state.setMobileSidebarOpen);
   const [menuOpen, setMenuOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const pageName = pathname === "/chat" ? "Chat" : pathname === "/projects" ? "Projects" : pathname === "/research" ? "Research" : pathname === "/images" ? "Images" : pathname === "/extensions" ? "Extensions" : pathname === "/settings" ? "Settings" : "Code Agent";
 
-  return (
-    <header className="titlebar atlas-topbar relative z-30 flex h-14 shrink-0 items-center border-b border-white/[0.06] px-5">
-      <div className="text-xs text-zinc-500 md:hidden">Atlas</div>
-      <div className="hidden items-center gap-3 text-xs md:flex">
-        <span className="flex items-center gap-2 uppercase tracking-[0.18em] text-zinc-500"><Circle className="h-1.5 w-1.5 fill-[var(--atlas-accent)] text-[var(--atlas-accent)]" /> Workspace</span>
-        <span className="h-4 w-px bg-white/[0.08]" />
-        <span className="rounded-full bg-white/[0.04] px-3 py-1 text-zinc-300">{pageName}</span>
-      </div>
-
-      <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-label="Application menu" aria-expanded={menuOpen} className="no-drag ml-auto grid h-8 w-8 place-items-center rounded-lg text-zinc-500 hover:bg-white/[0.05] hover:text-white">
-        <MoreHorizontal className="h-4 w-4" />
-      </button>
-      {menuOpen && (
-        <div className="no-drag absolute right-32 top-10 z-50 w-44 rounded-xl border border-white/10 bg-[#202329] p-1 text-xs shadow-2xl">
-          <button type="button" onClick={() => { navigate("/"); window.dispatchEvent(new Event("atlas:new-task")); setMenuOpen(false); }} className="w-full rounded-lg px-3 py-2 text-left text-zinc-300 hover:bg-white/[0.06]">New code task</button>
-          <button type="button" onClick={() => { navigate("/settings"); setMenuOpen(false); }} className="w-full rounded-lg px-3 py-2 text-left text-zinc-300 hover:bg-white/[0.06]">Settings</button>
-          <button type="button" onClick={() => { setAboutOpen(true); setMenuOpen(false); }} className="w-full rounded-lg px-3 py-2 text-left text-zinc-300 hover:bg-white/[0.06]">About Atlas</button>
-        </div>
-      )}
-
-      {isDesktop && (
-        <div className="no-drag -mr-5 ml-3 flex h-14 border-l border-white/[0.06]">
-          <WindowButton label="Minimize" onClick={() => window.atlasDesktop?.windowControl("minimize")}>
-            <Minus className="h-3.5 w-3.5" />
-          </WindowButton>
-          <WindowButton label="Maximize" onClick={() => window.atlasDesktop?.windowControl("maximize")}>
-            <Square className="h-3 w-3" />
-          </WindowButton>
-          <WindowButton label="Close" danger onClick={() => window.atlasDesktop?.windowControl("close")}>
-            <X className="h-3.5 w-3.5" />
-          </WindowButton>
-        </div>
-      )}
-      {aboutOpen && (
-        <div className="no-drag fixed inset-0 z-[70] grid place-items-center bg-black/70 p-4" role="dialog" aria-modal="true" aria-labelledby="about-atlas-title">
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#181b20] p-6 shadow-2xl">
-            <div className="flex items-start"><div><h2 id="about-atlas-title" className="text-lg font-semibold text-white">Atlas</h2><p className="mt-1 text-xs text-zinc-500">Local intelligence workspace · 0.1.0</p></div><button type="button" onClick={() => setAboutOpen(false)} className="ml-auto text-zinc-500 hover:text-white" aria-label="Close about dialog"><X className="h-4 w-4" /></button></div>
-            <p className="mt-5 text-sm leading-6 text-zinc-400">Built for grounded research, code assistance, general chat, projects, images, and community extensions. Provider connections are managed in Settings.</p>
-            <button type="button" onClick={() => setAboutOpen(false)} className="atlas-accent-bg mt-6 w-full rounded-lg py-2 text-sm font-medium text-white">Done</button>
-          </div>
-        </div>
-      )}
-    </header>
-  );
+  return <header className="titlebar atlas-topbar relative z-30 flex h-12 shrink-0 items-center border-b border-[var(--atlas-border)] px-3 sm:px-4">
+    <button type="button" onClick={() => setMobileSidebarOpen(true)} aria-label="Open navigation" className="no-drag atlas-icon-button mr-2 md:hidden"><Menu className="h-4 w-4" /></button>
+    <span className="text-sm font-medium text-[var(--atlas-text)]">{pageNames[pathname] ?? "Atlas"}</span>
+    <button type="button" onClick={() => window.dispatchEvent(new Event("atlas:command-palette"))} className="no-drag ml-auto hidden h-8 items-center rounded-lg border border-[var(--atlas-border)] px-3 text-[11px] text-[var(--atlas-subtle)] hover:bg-[var(--atlas-hover)] hover:text-[var(--atlas-text)] sm:flex"><Command className="mr-2 h-3.5 w-3.5" />Search or command <kbd className="ml-3 opacity-60">Ctrl K</kbd></button>
+    <button type="button" onClick={() => setMenuOpen((open) => !open)} aria-label="Application menu" aria-expanded={menuOpen} className="no-drag atlas-icon-button ml-1"><MoreHorizontal className="h-4 w-4" /></button>
+    {menuOpen && <div className="no-drag absolute right-3 top-10 z-50 w-44 rounded-xl border border-[var(--atlas-border)] bg-[var(--atlas-popover)] p-1.5 text-xs shadow-2xl"><MenuButton onClick={() => { navigate("/extensions"); setMenuOpen(false); }}>Extensions</MenuButton><MenuButton onClick={() => { navigate("/settings"); setMenuOpen(false); }}>Settings</MenuButton><MenuButton onClick={() => { setAboutOpen(true); setMenuOpen(false); }}>About Atlas</MenuButton></div>}
+    {isDesktop && <div className="no-drag -mr-4 ml-2 flex h-12 border-l border-[var(--atlas-border)]"><WindowButton label="Minimize" onClick={() => window.atlasDesktop?.windowControl("minimize")}><Minus className="h-3.5 w-3.5" /></WindowButton><WindowButton label="Maximize" onClick={() => window.atlasDesktop?.windowControl("maximize")}><Square className="h-3 w-3" /></WindowButton><WindowButton label="Close" danger onClick={() => window.atlasDesktop?.windowControl("close")}><X className="h-3.5 w-3.5" /></WindowButton></div>}
+    {aboutOpen && <div className="no-drag fixed inset-0 z-[70] grid place-items-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="about-atlas-title"><div className="w-full max-w-sm rounded-2xl border border-[var(--atlas-border)] bg-[var(--atlas-popover)] p-6 shadow-2xl"><div className="flex items-start"><div><h2 id="about-atlas-title" className="text-lg font-semibold text-[var(--atlas-text)]">Atlas</h2><p className="mt-1 text-xs text-[var(--atlas-subtle)]">Unified AI workspace · 0.1.0 developer preview</p></div><button type="button" onClick={() => setAboutOpen(false)} className="atlas-icon-button ml-auto" aria-label="Close about dialog"><X className="h-4 w-4" /></button></div><p className="mt-5 text-sm leading-6 text-[var(--atlas-muted)]">Atlas Native chat, code, files, projects, and public-information research. Image generation is not included in this preview.</p><button type="button" onClick={() => setAboutOpen(false)} className="atlas-primary-button mt-6 w-full justify-center">Done</button></div></div>}
+  </header>;
 }
 
-function WindowButton({ label, danger = false, onClick, children }: { label: string; danger?: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      onClick={onClick}
-      className={`grid w-11 place-items-center transition ${danger ? "text-zinc-500 hover:bg-red-500/80 hover:text-white" : "text-zinc-500 hover:bg-white/[0.06] hover:text-white"}`}
-    >
-      {children}
-    </button>
-  );
-}
+function MenuButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) { return <button type="button" onClick={onClick} className="w-full rounded-lg px-3 py-2 text-left text-[var(--atlas-muted)] hover:bg-[var(--atlas-hover)] hover:text-[var(--atlas-text)]">{children}</button>; }
+function WindowButton({ label, danger = false, onClick, children }: { label: string; danger?: boolean; onClick: () => void; children: React.ReactNode }) { return <button type="button" aria-label={label} onClick={onClick} className={`grid w-11 place-items-center transition ${danger ? "text-[var(--atlas-subtle)] hover:bg-red-500/80 hover:text-white" : "text-[var(--atlas-subtle)] hover:bg-[var(--atlas-hover)] hover:text-[var(--atlas-text)]"}`}>{children}</button>; }

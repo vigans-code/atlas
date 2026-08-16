@@ -124,6 +124,7 @@ class AtlasTransformer(nn.Module):
         max_new_tokens: int,
         temperature: float = 0.8,
         top_k: int = 40,
+        stop_sequences: tuple[tuple[int, ...], ...] = (),
     ) -> torch.Tensor:
         self.eval()
         for _ in range(max_new_tokens):
@@ -136,6 +137,13 @@ class AtlasTransformer(nn.Module):
             next_token = torch.multinomial(F.softmax(next_logits, dim=-1), num_samples=1)
             tokens = torch.cat((tokens, next_token), dim=1)
             if torch.all(next_token == 2):
+                break
+            if tokens.shape[0] == 1 and any(
+                len(sequence) <= tokens.shape[1]
+                and tuple(tokens[0, -len(sequence) :].tolist()) == sequence
+                for sequence in stop_sequences
+                if sequence
+            ):
                 break
         return tokens
 

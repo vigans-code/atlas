@@ -1,14 +1,27 @@
 import { Clock3, FolderKanban, FolderOpen, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 
 import { useProjectStore } from "../../stores/projects";
 
 export function Projects() {
   const { projects, activeProjectId, addProject, removeProject, setActiveProject } = useProjectStore();
-  const [createOpen, setCreateOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(() => {
+    const requested = sessionStorage.getItem("atlas:new-project") === "1";
+    sessionStorage.removeItem("atlas:new-project");
+    return requested;
+  });
   const [name, setName] = useState("");
   const [menuProject, setMenuProject] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    const openCreate = () => {
+      sessionStorage.removeItem("atlas:new-project");
+      setCreateOpen(true);
+    };
+    window.addEventListener("atlas:new-project", openCreate);
+    return () => window.removeEventListener("atlas:new-project", openCreate);
+  }, []);
 
   const createProject = (event: FormEvent) => {
     event.preventDefault();

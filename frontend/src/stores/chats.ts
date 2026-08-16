@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 export interface SavedChatMessage {
   id: string;
@@ -14,6 +14,10 @@ export interface SavedChat {
   messages: SavedChatMessage[];
   createdAt: string;
   updatedAt: string;
+  pinned?: boolean;
+  archived?: boolean;
+  parentChatId?: string;
+  branchMessageId?: string;
 }
 
 interface ChatState {
@@ -23,6 +27,12 @@ interface ChatState {
   ensureChat: () => string;
   setActiveChat: (id: string) => void;
   addMessage: (chatId: string, message: Pick<SavedChatMessage, "role" | "content">) => SavedChatMessage;
+  updateMessage: (chatId: string, messageId: string, content: string) => void;
+  renameChat: (id: string, title: string) => void;
+  removeChat: (id: string) => void;
+  togglePinned: (id: string) => void;
+  toggleArchived: (id: string) => void;
+  branchChat: (chatId: string, messageId: string) => string | null;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -32,7 +42,7 @@ export const useChatStore = create<ChatState>()(
       activeChatId: null,
       createChat: () => {
         const now = new Date().toISOString();
-        const chat: SavedChat = { id: crypto.randomUUID(), title: "New chat", messages: [], createdAt: now, updatedAt: now };
+        const chat: SavedChat = { id: crypto.randomUUID(), title: "New chat", messages: [], createdAt: now, updatedAt: now, pinned: false, archived: false };
         set((state) => ({ chats: [chat, ...state.chats].slice(0, 30), activeChatId: chat.id }));
         return chat.id;
       },
@@ -61,8 +71,47 @@ export const useChatStore = create<ChatState>()(
         }));
         return message;
       },
+      updateMessage: (chatId, messageId, content) => set((state) => ({
+        chats: state.chats.map((chat) => chat.id === chatId ? {
+          ...chat,
+          messages: chat.messages.map((message) => message.id === messageId ? { ...message, content: content.trim().slice(0, 16_000) } : message),
+          updatedAt: new Date().toISOString(),
+        } : chat),
+      })),
+      renameChat: (id, title) => set((state) => ({
+        chats: state.chats.map((chat) => chat.id === id ? { ...chat, title: chatTitle(title), updatedAt: new Date().toISOString() } : chat),
+      })),
+      removeChat: (id) => set((state) => {
+        const chats = state.chats.filter((chat) => chat.id !== id);
+        return { chats, activeChatId: state.activeChatId === id ? chats[0]?.id ?? null : state.activeChatId };
+      }),
+      togglePinned: (id) => set((state) => ({
+        chats: state.chats.map((chat) => chat.id === id ? { ...chat, pinned: !chat.pinned } : chat),
+      })),
+      toggleArchived: (id) => set((state) => ({
+        chats: state.chats.map((chat) => chat.id === id ? { ...chat, archived: !chat.archived, updatedAt: new Date().toISOString() } : chat),
+      })),
+      branchChat: (chatId, messageId) => {
+        const source = get().chats.find((chat) => chat.id === chatId);
+        const branchIndex = source?.messages.findIndex((message) => message.id === messageId) ?? -1;
+        if (!source || branchIndex < 0) return null;
+        const now = new Date().toISOString();
+        const branch: SavedChat = {
+          id: crypto.randomUUID(),
+          title: chatTitle(`Branch · ${source.title}`),
+          messages: source.messages.slice(0, branchIndex + 1).map((message) => ({ ...message, id: crypto.randomUUID() })),
+          createdAt: now,
+          updatedAt: now,
+          pinned: false,
+          archived: false,
+          parentChatId: source.id,
+          branchMessageId: messageId,
+        };
+        set((state) => ({ chats: [branch, ...state.chats].slice(0, 50), activeChatId: branch.id }));
+        return branch.id;
+      },
     }),
-    { name: "atlas-saved-chats", version: 1 },
+    { name: "atlas-saved-chats", version: 1, storage: createJSONStorage(() => globalThis.localStorage) },
   ),
 );
 

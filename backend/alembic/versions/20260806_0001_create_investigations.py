@@ -24,7 +24,11 @@ def upgrade() -> None:
         sa.Column(
             "status",
             sa.Enum(
-                "DRAFT", "ACTIVE", "REVIEW", "CLOSED", "ARCHIVED",
+                "DRAFT",
+                "ACTIVE",
+                "REVIEW",
+                "CLOSED",
+                "ARCHIVED",
                 name="investigation_status",
                 native_enum=False,
             ),
@@ -33,7 +37,10 @@ def upgrade() -> None:
         sa.Column(
             "priority",
             sa.Enum(
-                "LOW", "MEDIUM", "HIGH", "CRITICAL",
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "CRITICAL",
                 name="investigation_priority",
                 native_enum=False,
             ),

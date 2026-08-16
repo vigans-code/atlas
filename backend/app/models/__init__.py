@@ -1,4 +1,66 @@
-from app.models.investigation import Investigation, InvestigationPriority, InvestigationStatus
+from app.models.entity import Entity, EntityMention, EntityType, Relationship, VerificationState
+from app.models.evidence import Evidence, EvidenceStatus, EvidenceType
+from app.models.investigation import (
+    Investigation,
+    InvestigationPriority,
+    InvestigationSensitivity,
+    InvestigationStatus,
+)
+from app.models.knowledge import (
+    IngestionJobStatus,
+    KnowledgeCategory,
+    KnowledgeChunk,
+    KnowledgeCitation,
+    KnowledgeDocument,
+    KnowledgeDocumentCategory,
+    KnowledgeDocumentStatus,
+    KnowledgeDocumentVersion,
+    KnowledgeEmbedding,
+    KnowledgeIngestionJob,
+    KnowledgeScope,
+    KnowledgeSource,
+    KnowledgeSourceType,
+    KnowledgeTrustLevel,
+    RefreshSchedule,
+)
+from app.models.project import Project, ProjectMembership, ProjectRole
+from app.models.source import Source, SourceReliability, SourceType
+from app.models.user import AuthSession, User
 
-__all__ = ["Investigation", "InvestigationPriority", "InvestigationStatus"]
-
+__all__ = [
+    "AuthSession",
+    "Entity",
+    "EntityMention",
+    "EntityType",
+    "Evidence",
+    "EvidenceStatus",
+    "EvidenceType",
+    "Investigation",
+    "InvestigationPriority",
+    "InvestigationSensitivity",
+    "InvestigationStatus",
+    "IngestionJobStatus",
+    "KnowledgeCategory",
+    "KnowledgeChunk",
+    "KnowledgeCitation",
+    "KnowledgeDocument",
+    "KnowledgeDocumentCategory",
+    "KnowledgeDocumentStatus",
+    "KnowledgeDocumentVersion",
+    "KnowledgeEmbedding",
+    "KnowledgeIngestionJob",
+    "KnowledgeScope",
+    "KnowledgeSource",
+    "KnowledgeSourceType",
+    "KnowledgeTrustLevel",
+    "Project",
+    "ProjectMembership",
+    "ProjectRole",
+    "RefreshSchedule",
+    "Relationship",
+    "Source",
+    "SourceReliability",
+    "SourceType",
+    "VerificationState",
+    "User",
+]

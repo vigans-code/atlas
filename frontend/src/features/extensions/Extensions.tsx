@@ -8,7 +8,7 @@ type ExtensionTab = "installed" | "discover" | "develop";
 const developmentKits = [
   { name: "Tool SDK", description: "Declare permission-scoped tools for Code Agent.", icon: Braces },
   { name: "Theme Kit", description: "Create colors, typography, and component tokens.", icon: Puzzle },
-  { name: "Model Adapter SDK", description: "Connect compatible chat, code, or image providers.", icon: PackageCheck },
+  { name: "Native Tool SDK", description: "Extend Atlas workflows without replacing the Atlas-owned model.", icon: PackageCheck },
 ];
 
 export function Extensions() {

@@ -5,6 +5,8 @@ import {
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { useResearchStore, type ResearchCategory } from "../../stores/research";
+import { useActivityStore } from "../../stores/activity";
+import { useLauncherStore } from "../../stores/launcher";
 import { sourceCatalog, type CatalogSource } from "./sourceCatalog";
 
 const categories: Array<"All" | ResearchCategory> = ["All", "Cybersecurity", "Programming", "Technology", "Games", "Custom"];
@@ -21,10 +23,17 @@ export function Research() {
   const [asking, setAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
   const requestIdRef = useRef<string | null>(null);
+  const recordActivity = useActivityStore((state) => state.record);
+  const takeDraft = useLauncherStore((state) => state.takeDraft);
 
   useEffect(() => window.atlasDesktop?.onProviderChatChunk((update) => {
     if (update.requestId === requestIdRef.current) setAnswer((current) => current + update.chunk);
   }), []);
+
+  useEffect(() => {
+    const launchedDraft = takeDraft("search");
+    if (launchedDraft) setQuestion(launchedDraft);
+  }, [takeDraft]);
 
   const filteredCatalog = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -82,6 +91,7 @@ export function Research() {
       ].join("\n");
       const result = await window.atlasDesktop.providerChat({ mode: "chat", messages: [{ role: "user", content: prompt }], requestId });
       setAnswer(result);
+      recordActivity({ type: "search", title: question.trim(), path: "/search" });
     } catch (error) {
       if (!readError(error).includes("Generation stopped")) setAskError(readError(error));
     } finally {
@@ -99,9 +109,9 @@ export function Research() {
       <div className="mx-auto max-w-[1500px] px-6 py-7 lg:px-8">
         <header className="flex flex-col justify-between gap-5 border-b border-white/[0.06] pb-6 xl:flex-row xl:items-end">
           <div>
-            <div className="atlas-eyebrow mb-4 flex items-center gap-2"><Globe2 className="h-4 w-4" /> Research archive / 04</div>
-            <h1 className="atlas-hero-title">Knowledge with provenance</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">Import public sources, keep local snapshots, and ask Atlas questions grounded in material you selected. Atlas stores the source URL and fetch time with every snapshot.</p>
+            <div className="atlas-eyebrow mb-4 flex items-center gap-2"><Globe2 className="h-4 w-4" /> Public-information workspace</div>
+            <h1 className="atlas-page-title">Search</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">Research public sources, keep local snapshots, and ask grounded questions. Every snapshot retains its source URL and collection time.</p>
           </div>
           <div className="flex gap-3">
             <Stat value={sourceCatalog.length} label="Curated sources" />

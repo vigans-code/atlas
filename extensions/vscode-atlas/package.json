@@ -9,7 +9,7 @@
     "vscode": "^1.85.0"
   },
   "categories": ["AI", "Programming Languages", "Other"],
-  "keywords": ["atlas", "ai", "local ai", "code assistant", "ollama"],
+  "keywords": ["atlas", "ai", "native ai", "code assistant"],
   "extensionKind": ["ui"],
   "main": "./extension.cjs",
   "activationEvents": [

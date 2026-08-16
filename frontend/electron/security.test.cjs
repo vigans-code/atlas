@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 const test = require("node:test");
 
-const { isPathInside, isSafeExternalUrl, sanitizeExtensionManifest } = require("./security.cjs");
+const { isPathInside, isSafeExternalUrl, sanitizeExtensionManifest, validateApiRequest } = require("./security.cjs");
 
 const validManifest = {
   schemaVersion: 1,
@@ -36,4 +36,14 @@ test("contains packaged file access within the renderer directory", () => {
   const root = path.resolve("dist");
   assert.equal(isPathInside(root, path.join(root, "index.html")), true);
   assert.equal(isPathInside(root, path.resolve(root, "..", "package.json")), false);
+});
+
+test("allows only bounded Atlas API requests", () => {
+  assert.deepEqual(
+    validateApiRequest({ path: "/api/v1/evidence?investigation_id=4d25e890-9bf0-4402-8c95-94746a96c67e", method: "GET" }),
+    { path: "/api/v1/evidence?investigation_id=4d25e890-9bf0-4402-8c95-94746a96c67e", method: "GET", body: null },
+  );
+  assert.throws(() => validateApiRequest({ path: "http://evil.example/api/v1/evidence", method: "GET" }));
+  assert.throws(() => validateApiRequest({ path: "/api/v1/admin/secrets", method: "GET" }));
+  assert.throws(() => validateApiRequest({ path: "/api/v1/evidence", method: "DELETE" }));
 });

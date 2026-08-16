@@ -1,0 +1,88 @@
+name: atlas
+
+# Production-oriented single-host deployment. Bind it behind a TLS reverse proxy.
+# All required values are documented in .env.production.example.
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-atlas}
+      POSTGRES_USER: ${POSTGRES_USER:-atlas}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - atlas-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-atlas} -d $${POSTGRES_DB:-atlas}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    volumes:
+      - atlas-redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a '$${REDIS_PASSWORD}' ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      ATLAS_ENVIRONMENT: production
+      ATLAS_SECRET_KEY: ${ATLAS_SECRET_KEY:?Set ATLAS_SECRET_KEY in .env}
+      ATLAS_DATABASE_URL: ${ATLAS_DATABASE_URL:?Set ATLAS_DATABASE_URL in .env}
+      ATLAS_REDIS_URL: ${ATLAS_REDIS_URL:?Set ATLAS_REDIS_URL in .env}
+      ATLAS_CORS_ORIGINS: ${ATLAS_CORS_ORIGINS:-["https://atlas.example.com"]}
+      ATLAS_TRUSTED_HOSTS: ${ATLAS_TRUSTED_HOSTS:-["atlas.example.com"]}
+      ATLAS_ENABLE_LEGACY_API: "false"
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/live')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  model:
+    build:
+      context: ./model
+    environment:
+      ATLAS_MODEL_CHECKPOINT: /model/checkpoints/atlas-v0.pt
+    volumes:
+      - ./model/checkpoints:/model/checkpoints:ro
+    expose:
+      - "47636"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:47636/v1/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./frontend
+      target: production
+    ports:
+      - "127.0.0.1:${ATLAS_WEB_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  atlas-postgres:
+  atlas-redis:

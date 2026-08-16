@@ -20,7 +20,9 @@ import { type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from 
 
 import { useUiStore } from "../../stores/ui";
 import { useProjectStore } from "../../stores/projects";
-import { navigate } from "../../lib/router";
+import { useActivityStore } from "../../stores/activity";
+import { useFileStore } from "../../stores/files";
+import { useLauncherStore } from "../../stores/launcher";
 
 type Message = {
   id: number;
@@ -40,11 +42,16 @@ export function CodeAgent() {
   const [draft, setDraft] = useState("");
   const [thinking, setThinking] = useState(false);
   const [attachments, setAttachments] = useState<AtlasSelectedFile[]>([]);
-  const [providerLabel, setProviderLabel] = useState("Local Demo");
+  const [providerLabel, setProviderLabel] = useState("Atlas Native");
   const nextId = useRef(1);
   const taskId = useRef(0);
   const showAgentContext = useUiStore((state) => state.showAgentContext);
-  const { projects, activeProjectId } = useProjectStore();
+  const { projects, activeProjectId, addProject } = useProjectStore();
+  const addLibraryFiles = useFileStore((state) => state.addFiles);
+  const libraryFiles = useFileStore((state) => state.files);
+  const takeDraft = useLauncherStore((state) => state.takeDraft);
+  const takeAttachmentIds = useLauncherStore((state) => state.takeAttachmentIds);
+  const recordActivity = useActivityStore((state) => state.record);
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null;
 
   const send = async (text: string) => {
@@ -54,18 +61,18 @@ export function CodeAgent() {
     const userMessage: Message = { id: nextId.current++, role: "user", content: prompt };
     const conversation = [...messages, userMessage];
     setMessages(conversation);
+    recordActivity({ type: "code", title: prompt, path: "/code" });
     setDraft("");
     setThinking(true);
     const attachmentIds = attachments.map((file) => file.id);
     setAttachments([]);
     try {
-      const content = window.atlasDesktop
-        ? await window.atlasDesktop.providerChat({
+      if (!window.atlasDesktop) throw new Error("Atlas Native is available in the Atlas desktop app.");
+      const content = await window.atlasDesktop.providerChat({
           mode: "code",
           messages: conversation.map(({ role, content }) => ({ role, content })),
           attachmentIds,
-        })
-        : localCodeReply(prompt);
+        });
       if (requestTaskId === taskId.current) {
         setMessages((current) => [...current, { id: nextId.current++, role: "assistant", content }]);
       }
@@ -107,10 +114,24 @@ export function CodeAgent() {
     void window.atlasDesktop?.getProvider().then((state) => setProviderLabel(providerName(state.config.provider))).catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    const launchedDraft = takeDraft("code");
+    const launchedIds = takeAttachmentIds("code");
+    if (launchedDraft) setDraft(launchedDraft);
+    if (launchedIds.length) setAttachments(libraryFiles.filter((file) => launchedIds.includes(file.id)));
+  }, [libraryFiles, takeAttachmentIds, takeDraft]);
+
   const selectFiles = async () => {
     if (!window.atlasDesktop) return;
     const selected = await window.atlasDesktop.selectFiles();
+    addLibraryFiles(selected);
     setAttachments((current) => [...current, ...selected].slice(0, 20));
+  };
+
+  const openProject = async () => {
+    if (!window.atlasDesktop) return;
+    const folder = await window.atlasDesktop.selectFolder();
+    if (folder) addProject({ name: folder.name, path: folder.path });
   };
 
   return (
@@ -166,7 +187,7 @@ export function CodeAgent() {
               <button type="button" onClick={() => void selectFiles()} aria-label="Attach context" className="grid h-8 w-8 place-items-center rounded-lg text-zinc-500 hover:bg-white/[0.05] hover:text-white">
                 <Paperclip className="h-4 w-4" />
               </button>
-              <button type="button" onClick={() => navigate("/projects")} className="ml-1 flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-zinc-500 hover:bg-white/[0.05] hover:text-white">
+              <button type="button" onClick={() => void openProject()} className="ml-1 flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs text-zinc-500 hover:bg-white/[0.05] hover:text-white">
                 <FolderOpen className="h-3.5 w-3.5" /> {activeProject ? activeProject.name : "Add project"}
               </button>
               <button
@@ -247,22 +268,8 @@ function AgentTool({ icon: Icon, label }: { icon: typeof FileCode2; label: strin
   return <div className="flex items-center rounded-lg px-2 py-2 text-xs text-zinc-500"><Icon className="mr-2.5 h-3.5 w-3.5 text-zinc-600" />{label}</div>;
 }
 
-function localCodeReply(prompt: string) {
-  const normalized = prompt.toLowerCase();
-  if (normalized.includes("debug") || normalized.includes("error")) {
-    return "Paste the error message, the relevant code, and what you expected to happen. I’ll help narrow it down by separating the observed behavior, likely causes, and the smallest safe fix.\n\nA generative coding model is not connected yet, so this desktop build is currently limited to guided responses.";
-  }
-  if (normalized.includes("review")) {
-    return "Add a project or paste the changed code. A useful review will check correctness, error handling, security boundaries, maintainability, tests, and unintended behavior.\n\nConnect a coding model in Settings to enable full code review responses.";
-  }
-  if (normalized.includes("explain")) {
-    return "Paste the code you want explained. I can break it down by purpose, data flow, important functions, dependencies, and potential edge cases once a coding model is connected.";
-  }
-  return "Your coding task is ready, but Atlas does not have a model provider connected yet. Open Settings to configure a coding model. Provider credentials should be stored by the backend or operating-system credential store, never directly in the renderer.";
-}
-
 function providerName(provider: AtlasProviderKind) {
-  return { atlas: "Atlas Native", demo: "Local Demo", openai: "OpenAI", compatible: "Compatible API", ollama: "Legacy Ollama" }[provider];
+  return provider === "atlas" ? "Atlas Native" : "Atlas Native";
 }
 
 function providerError(error: unknown) {

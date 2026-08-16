@@ -52,7 +52,7 @@ app = FastAPI(
 async def health() -> dict:
     return {
         "status": "ready" if model is not None else "checkpoint-required",
-        "model": "atlas-native-v0",
+        "model": "atlas-native-v1",
         "initialized_from": metadata.get("initialized_from") if metadata else "random",
         "checkpoint": str(checkpoint_path),
     }
@@ -76,8 +76,9 @@ async def chat(request: ChatRequest) -> dict[str, str]:
             request.max_new_tokens,
             request.temperature,
             request.top_k,
+            (tuple(tokenizer.encode("\nUser:")),),
         )
     text = tokenizer.decode(generated[0, len(encoded) :].tolist()).strip()
     for marker in ("\nUser:", "\nAtlas:", "<ATLAS_SOURCE_BOUNDARY>"):
         text = text.split(marker, 1)[0].strip()
-    return {"content": text, "model": "atlas-native-v0"}
+    return {"content": text, "model": "atlas-native-v1"}

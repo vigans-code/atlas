@@ -46,4 +46,3 @@ async def ready(db: AsyncSession = Depends(get_db)) -> ReadyStatus:
     finally:
         await cache.aclose()
     return ReadyStatus()
-

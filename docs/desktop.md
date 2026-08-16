@@ -1,6 +1,7 @@
 # Atlas desktop architecture
 
-Atlas uses Electron as a thin desktop host around a clean React-based AI research workspace. The interface uses a conventional conversation layout with restrained desktop navigation and accessible, low-distraction styling.
+Atlas uses Electron as a thin desktop host around a React-based AI workspace. The interface centers
+Chat, Image, Code, Search, Files, and unified History with accessible, low-distraction styling.
 
 ## Process boundary
 
@@ -10,13 +11,19 @@ The Electron main process owns the native window. The React renderer has no Node
 
 ## Local services
 
-The current milestone connects to the Atlas FastAPI service at `http://localhost:8000/api/v1`. PostgreSQL, Redis, and FastAPI run through Docker Compose:
+The desktop uses a narrow validated IPC request bridge to connect to the Atlas FastAPI service at
+`http://127.0.0.1:8000/api/v1`. This avoids granting the secure renderer general network access.
+PostgreSQL, Redis, and FastAPI run through Docker Compose:
 
 ```powershell
 docker compose up --build --detach db redis api
 ```
 
-The desktop UI shows a degraded state when this local service is unavailable. Before external distribution, the backend will be bundled as a signed Python sidecar with per-installation secrets and explicit lifecycle management.
+New conversation repositories will use this service instead of silently substituting browser-local
+production data. During the migration, some session state remains local and the investigation API
+is compatibility-only. Before external distribution, the backend will be bundled as a signed
+sidecar or configured as a secured remote service with authentication and explicit lifecycle
+management.
 
 ## Development
 

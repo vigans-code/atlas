@@ -4,17 +4,10 @@ const { spawn } = require("node:child_process");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
-const { DEFAULT_PROVIDER, runProviderChat, runProviderImage, testProvider, validateProviderConfig } = require("./provider.cjs");
+const { DEFAULT_PROVIDER, resolveStoredProviderConfig, runProviderChat, runProviderImage, testProvider, validateProviderConfig } = require("./provider.cjs");
 const { startCompanionServer } = require("./companion.cjs");
-const {
-  OLLAMA_BASE_URL,
-  OLLAMA_DOWNLOAD_URL,
-  getLocalAiStatus,
-  pullLocalModel,
-  startOllama,
-  validateLocalModelName,
-} = require("./local-ai.cjs");
-const { isPathInside, isSafeExternalUrl, sanitizeExtensionManifest } = require("./security.cjs");
+const { startNativeModel, stopNativeModel } = require("./native-model.cjs");
+const { isPathInside, isSafeExternalUrl, sanitizeExtensionManifest, validateApiRequest } = require("./security.cjs");
 const { fetchResearchSource, validateResearchUrl } = require("./research.cjs");
 
 const isDevelopment = Boolean(process.env.ATLAS_DESKTOP_DEV_URL);
@@ -22,8 +15,9 @@ let mainWindow;
 let companionServer;
 let companionToken;
 let companionError = null;
+let nativeModelProcess;
+let nativeModelError = null;
 const selectedFiles = new Map();
-const localModelDownloads = new Map();
 const providerChatControllers = new Map();
 const dictationProcesses = new Map();
 const researchFetches = new Set();
@@ -46,13 +40,13 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1600,
     height: 1000,
-    minWidth: 1180,
-    minHeight: 720,
+    minWidth: 360,
+    minHeight: 560,
     show: false,
     frame: false,
-    backgroundColor: "#0d0f12",
+    backgroundColor: "#0c0c0e",
     autoHideMenuBar: true,
-    title: "Atlas — Local Intelligence",
+    title: "Atlas",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -129,6 +123,9 @@ if (!singleInstance) {
     session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
       callback(false);
     });
+    const nativeModel = await startNativeModel();
+    nativeModelProcess = nativeModel.process;
+    nativeModelError = nativeModel.error;
     await startAtlasCompanion();
     createWindow();
   });
@@ -181,6 +178,23 @@ ipcMain.handle("atlas:research-fetch", async (event, url) => {
   }
 });
 
+ipcMain.handle("atlas:api-request", async (event, input) => {
+  if (!isTrustedSender(event)) return null;
+  const request = validateApiRequest(input);
+  const response = await net.fetch(`http://127.0.0.1:8000${request.path}`, {
+    method: request.method,
+    headers: request.body === null ? undefined : { "Content-Type": "application/json" },
+    body: request.body === null ? undefined : JSON.stringify(request.body),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = payload && typeof payload.detail === "string" ? payload.detail : `Atlas API returned ${response.status}.`;
+    throw new Error(detail.slice(0, 500));
+  }
+  return payload;
+});
+
 ipcMain.handle("atlas:open-external", async (event, url) => {
   if (!isTrustedSender(event) || !isSafeExternalUrl(url, false)) return false;
   await shell.openExternal(url);
@@ -196,14 +210,8 @@ ipcMain.handle("atlas:provider-save", async (event, input) => {
   if (!isTrustedSender(event)) return null;
   const document = await readProviderDocument();
   const config = validateProviderConfig(input?.config);
-  const apiKey = typeof input?.apiKey === "string" ? input.apiKey.trim() : "";
-  if (apiKey.length > 2_000) throw new Error("The API key is too long.");
-  if ((apiKey || input?.clearApiKey) && !safeStorage.isEncryptionAvailable()) {
-    throw new Error("Secure credential storage is unavailable on this device.");
-  }
   document.config = config;
-  if (input?.clearApiKey) delete document.encryptedApiKey;
-  if (apiKey) document.encryptedApiKey = safeStorage.encryptString(apiKey).toString("base64");
+  delete document.encryptedApiKey;
   await writeProviderDocument(document);
   return publicProviderState(document);
 });
@@ -212,10 +220,8 @@ ipcMain.handle("atlas:provider-test", async (event, input) => {
   if (!isTrustedSender(event)) return null;
   const document = await readProviderDocument();
   const config = input?.config ? validateProviderConfig(input.config) : document.config;
-  const apiKey = typeof input?.apiKey === "string" && input.apiKey.trim()
-    ? input.apiKey.trim()
-    : decryptProviderKey(document);
-  return testProvider({ config, apiKey, installationId: document.installationId });
+  if (nativeModelError) throw new Error(nativeModelError);
+  return testProvider({ config });
 });
 
 ipcMain.handle("atlas:provider-chat", async (event, input) => {
@@ -228,8 +234,6 @@ ipcMain.handle("atlas:provider-chat", async (event, input) => {
   try {
     return await runProviderChat({
       config: document.config,
-      apiKey: decryptProviderKey(document),
-      installationId: document.installationId,
       mode: input?.mode === "code" ? "code" : "chat",
       messages: input?.messages,
       attachmentText,
@@ -300,72 +304,7 @@ ipcMain.handle("atlas:dictation-stop", async (event) => {
 ipcMain.handle("atlas:provider-image", async (event, prompt) => {
   if (!isTrustedSender(event)) return null;
   const document = await readProviderDocument();
-  return runProviderImage({ config: document.config, apiKey: decryptProviderKey(document), prompt });
-});
-
-ipcMain.handle("atlas:local-ai-status", async (event) => {
-  if (!isTrustedSender(event)) return null;
-  const status = await getLocalAiStatus();
-  const document = await readProviderDocument();
-  return {
-    ...status,
-    active: document.config.provider === "ollama",
-    activeModel: document.config.provider === "ollama" ? document.config.model : null,
-    activeChatModel: document.config.provider === "ollama" ? document.config.chatModel : null,
-  };
-});
-
-ipcMain.handle("atlas:local-ai-open-installer", async (event) => {
-  if (!isTrustedSender(event)) return false;
-  await shell.openExternal(OLLAMA_DOWNLOAD_URL);
-  return true;
-});
-
-ipcMain.handle("atlas:local-ai-start", async (event) => {
-  if (!isTrustedSender(event)) return null;
-  return startOllama();
-});
-
-ipcMain.handle("atlas:local-ai-pull", async (event, modelName) => {
-  if (!isTrustedSender(event)) return null;
-  const senderId = event.sender.id;
-  if (localModelDownloads.has(senderId)) throw new Error("A local model download is already running.");
-  const model = validateLocalModelName(modelName);
-  const controller = new AbortController();
-  localModelDownloads.set(senderId, controller);
-  try {
-    const status = await pullLocalModel(model, (progress) => {
-      if (!event.sender.isDestroyed()) event.sender.send("atlas:local-ai-progress", progress);
-    }, controller.signal);
-    const document = await readProviderDocument();
-    const chatModel = chooseInstalledChatModel(status, model);
-    document.config = validateProviderConfig({ provider: "ollama", model, chatModel, imageModel: "not-supported", baseUrl: OLLAMA_BASE_URL, reasoningEffort: "none" });
-    await writeProviderDocument(document);
-    return { ...status, active: true, activeModel: model, activeChatModel: chatModel };
-  } finally {
-    localModelDownloads.delete(senderId);
-  }
-});
-
-ipcMain.handle("atlas:local-ai-cancel", async (event) => {
-  if (!isTrustedSender(event)) return false;
-  const controller = localModelDownloads.get(event.sender.id);
-  if (!controller) return false;
-  controller.abort();
-  return true;
-});
-
-ipcMain.handle("atlas:local-ai-use", async (event, modelName) => {
-  if (!isTrustedSender(event)) return null;
-  const model = validateLocalModelName(modelName);
-  const status = await getLocalAiStatus();
-  if (!status.runtimeRunning) throw new Error("Start Ollama before enabling Local Atlas AI.");
-  if (!status.models.some((installed) => installed.name === model)) throw new Error("Download this local model before enabling it.");
-  const document = await readProviderDocument();
-  const chatModel = chooseInstalledChatModel(status, model);
-  document.config = validateProviderConfig({ provider: "ollama", model, chatModel, imageModel: "not-supported", baseUrl: OLLAMA_BASE_URL, reasoningEffort: "none" });
-  await writeProviderDocument(document);
-  return { ...status, active: true, activeModel: model, activeChatModel: chatModel };
+  return runProviderImage({ config: document.config, prompt });
 });
 
 ipcMain.handle("atlas:select-folder", async (event) => {
@@ -439,8 +378,6 @@ async function startAtlasCompanion() {
         const document = await readProviderDocument();
         return runProviderChat({
           config: document.config,
-          apiKey: decryptProviderKey(document),
-          installationId: document.installationId,
           mode,
           messages,
         });
@@ -496,14 +433,16 @@ async function readProviderDocument() {
   const fallback = { version: 1, installationId: randomUUID(), config: { ...DEFAULT_PROVIDER } };
   try {
     const parsed = JSON.parse(await fs.readFile(providerConfigPath(), "utf8"));
-    const savedConfig = validateProviderConfig(parsed.config);
+    const savedConfig = resolveStoredProviderConfig(parsed.config);
     return {
       version: 1,
       installationId: typeof parsed.installationId === "string" && parsed.installationId.length <= 100 ? parsed.installationId : fallback.installationId,
-      config: savedConfig.provider === "atlas" ? savedConfig : { ...DEFAULT_PROVIDER },
-      ...(typeof parsed.encryptedApiKey === "string" ? { encryptedApiKey: parsed.encryptedApiKey } : {}),
+      config: savedConfig,
     };
   } catch {
+    // Migrate unreadable or legacy third-party provider settings to the only
+    // supported Atlas Native configuration, removing any obsolete credential.
+    await writeProviderDocument(fallback).catch(() => undefined);
     return fallback;
   }
 }
@@ -516,24 +455,9 @@ async function writeProviderDocument(document) {
 function publicProviderState(document) {
   return {
     config: document.config,
-    hasApiKey: Boolean(document.encryptedApiKey),
-    encryptionAvailable: safeStorage.isEncryptionAvailable(),
+    hasApiKey: false,
+    encryptionAvailable: false,
   };
-}
-
-function decryptProviderKey(document) {
-  if (!document.encryptedApiKey) return "";
-  if (!safeStorage.isEncryptionAvailable()) throw new Error("Secure credential storage is unavailable on this device.");
-  try {
-    return safeStorage.decryptString(Buffer.from(document.encryptedApiKey, "base64"));
-  } catch {
-    throw new Error("The saved provider credential could not be decrypted. Clear it in Settings and add it again.");
-  }
-}
-
-function chooseInstalledChatModel(status, codeModel) {
-  const generalModel = codeModel.replace("-coder", "");
-  return status.models.some((installed) => installed.name === generalModel) ? generalModel : codeModel;
 }
 
 function collectDictationResult(child) {
@@ -604,6 +528,7 @@ app.on("window-all-closed", () => {
 
 app.on("before-quit", () => {
   void companionServer?.close();
+  stopNativeModel(nativeModelProcess);
 });
 
 app.on("activate", () => {

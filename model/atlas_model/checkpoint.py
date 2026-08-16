@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import torch
 
@@ -6,8 +7,17 @@ from atlas_model.config import AtlasModelConfig
 from atlas_model.network import AtlasTransformer
 
 
-def save_checkpoint(path: Path, model: AtlasTransformer, *, step: int, corpus_sha256: str) -> None:
+def save_checkpoint(
+    path: Path,
+    model: AtlasTransformer,
+    *,
+    step: int,
+    corpus_sha256: str,
+    training_state: dict[str, Any] | None = None,
+    validation_loss: float | None = None,
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = path.with_suffix(f"{path.suffix}.tmp")
     torch.save(
         {
             "format": AtlasTransformer.checkpoint_format,
@@ -16,9 +26,12 @@ def save_checkpoint(path: Path, model: AtlasTransformer, *, step: int, corpus_sh
             "model": model.state_dict(),
             "step": int(step),
             "corpus_sha256": corpus_sha256,
+            "validation_loss": validation_loss,
+            **({"training_state": training_state} if training_state is not None else {}),
         },
-        path,
+        temporary_path,
     )
+    temporary_path.replace(path)
 
 
 def load_checkpoint(path: Path, device: str = "cpu") -> tuple[AtlasTransformer, dict]:
@@ -30,4 +43,14 @@ def load_checkpoint(path: Path, device: str = "cpu") -> tuple[AtlasTransformer, 
     model = AtlasTransformer(AtlasModelConfig.from_dict(value["config"]))
     model.load_state_dict(value["model"], strict=True)
     model.to(device)
-    return model, {key: value[key] for key in ("step", "corpus_sha256", "initialized_from")}
+    metadata = {
+        key: value.get(key)
+        for key in (
+            "step",
+            "corpus_sha256",
+            "initialized_from",
+            "validation_loss",
+            "training_state",
+        )
+    }
+    return model, metadata

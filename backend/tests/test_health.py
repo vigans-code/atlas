@@ -13,4 +13,3 @@ async def test_liveness(client: AsyncClient) -> None:
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
     assert response.headers["x-request-id"]
-
